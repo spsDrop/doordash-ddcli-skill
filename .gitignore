@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Secrets — never commit tokens
+*.token
+.env
+.env.*
+secrets/
+.env.*.bak
+*.pem
+id_rsa*
+
+# OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# dd-cli tarballs / extracted builds (regenerate via install-dd-cli.sh)
+dd-cli*.tar.gz
+dd-cli*/
+_internal/
+
+# Local logs
+*.log
+logs/

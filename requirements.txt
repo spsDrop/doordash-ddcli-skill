@@ -1,0 +1,7 @@
+# ddtools.py and the helper scripts are Python-stdlib-only (Python 3.9+).
+# No third-party packages are required. This file exists so package managers
+# and CI have a stable install step (`pip install -r requirements.txt`).
+#
+# The `dd-cli` binary itself is NOT a Python package — install it with:
+#   bash scripts/install-dd-cli.sh
+# which downloads the official release from github.com/doordash-oss/doordash-cli.
