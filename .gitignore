@@ -32,3 +32,4 @@ logs/
 # agent skill install artifacts (local only)
 .claude/
 .agents/
+skills-lock.json
