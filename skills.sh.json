@@ -2,8 +2,8 @@
   "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
   "groupings": [
     {
-      "title": "DoorDash Ordering (dd-cli)",
-      "skills": ["doordash-ddcli"]
+      "title": "DoorDash Ordering Skill (dd-cli)",
+      "skills": ["doordash-ordering-skill-ddcli"]
     }
   ]
 }

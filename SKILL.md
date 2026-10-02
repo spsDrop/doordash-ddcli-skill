@@ -1,5 +1,5 @@
 ---
-name: doordash-ddcli
+name: doordash-ordering-skill-ddcli
 description: Order food/grocery from DoorDash via the official dd-cli binary. Precise option, tip, fulfillment, price and promo control — better than browser automation.
 metadata:
   emoji: "🍕"
