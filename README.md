@@ -1,8 +1,7 @@
-# doordash-ddcli-skill
+# doordash-ordering-skill-ddcli
 
 A [Hermes Agent](https://hermes-agent.nousresearch.com) **skill** for ordering
-food & grocery through DoorDash — built on the **official `dd-cli` binary**
-rather than brittle browser automation.
+food & grocery through DoorDash — built on the **official `dd-cli` binary**.
 
 It gives an agent *precise, reliable* control over the two things that are
 fiddly by hand: **re-ordering a subset of a past order** and **walking a
@@ -54,7 +53,7 @@ dd-cli payment-method list --intent "verifying auth"
 ## The high-level call functions
 
 Everything is driven by `dd-cli` on `$PATH`. The `ddtools.py` helper wraps the
-two fiddly jobs so an agent doesn't hand-roll the bookkeeping:
+two fiddly jobs so an agent doesn't hand-roll the bookkeeping. Using these methods greatly increase speed and success of agents attempting to assemble orders and reorder:
 
 | Call | What it does |
 |---|---|

@@ -1,9 +1,9 @@
-# DoorDash — official dd-cli
+# DoorDash Ordering Skill (dd-cli)
 
 This skill wraps the **official DoorDash CLI** (`dd-cli`, on `$PATH`) and
 ships a Python helper, **`ddtools`**, on top of it. **Prefer `ddtools`** for
 the two fiddly-by-hand jobs it covers — subset reorders and option trees; it
-does the retry / cleanup / verify bookkeeping. The raw `dd-cli` commands are
+does the retry / cleanup / verify bookkeeping. Using these methods greatly increase speed and success of attempting to assemble orders and reorder. The raw `dd-cli` commands are
 what it builds on and cover everything else.
 
 ## What this skill provides (front-line tools)
