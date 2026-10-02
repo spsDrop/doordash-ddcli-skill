@@ -1,16 +1,59 @@
----
-name: doordash-ordering-skill-ddcli
-description: Order food/grocery from DoorDash via the official dd-cli binary. Precise option, tip, fulfillment, price and promo control — better than browser automation.
-metadata:
-  emoji: "🍕"
-  category: "commerce"
----
-
 # DoorDash — official dd-cli
 
-Order via the **official DoorDash CLI** (`dd-cli`, on `$PATH`). This is the
-preferred path for real orders: precise control over **options, tip,
-fulfillment, price and promos** that browser automation can't reliably do.
+This skill wraps the **official DoorDash CLI** (`dd-cli`, on `$PATH`) and
+ships a Python helper, **`ddtools`**, on top of it. **Prefer `ddtools`** for
+the two fiddly-by-hand jobs it covers — subset reorders and option trees; it
+does the retry / cleanup / verify bookkeeping. The raw `dd-cli` commands are
+what it builds on and cover everything else.
+
+## What this skill provides (front-line tools)
+
+`scripts/ddtools.py` — one Python entrypoint wrapping `dd-cli` (runs it from
+`$PATH`, auth via `DD_CLI_ACCESS_TOKEN`; every subcommand prints clean JSON).
+**Reach for these first** when the job fits:
+
+```
+python3 scripts/ddtools.py reorder <order_uuid> [indices…] [--cleanup] [--json]
+    Re-order 1-based receipt-line indices (default = all) into a fresh cart:
+    nukes pre-existing open carts, adds lines with their receipt options
+    (bounded retries: transient → 15s re-add of just those items; rejected
+    options → retry bare; ITEM_UNAVAILABLE → terminal, no retry), verifies the
+    cart line-by-line, runs preview. Leaves the cart OPEN for `order submit`
+    unless --cleanup (dry-run: deletes the verified cart, including on FAIL —
+    never leaks an open cart). PASS = cart matches the re-ordered lines
+    exactly. `asap_available:false` (store closed / scheduled-ahead, e.g. at
+    night) does NOT fail a reorder.
+
+python3 scripts/ddtools.py read-options --store-id S (--item-id I | --query NAME) [--menu-id M]
+    Flatten the item's option tree into rows {kind,path,top,parent,depth,id,
+    name,price,is_default,enum}. kind=group (min/max/required), kind=option
+    (pickable leaf), kind=choice (expander w/ sub-groups). Pass `parent` when
+    an option id could collide across branches.
+
+python3 scripts/ddtools.py write-options --store-id S --item-id I --picks '[{"id","parent"?,"name"?,"quantity"?}]' [--quantity N] [--keep-defaults]
+    Resolve flat picks (from read-options) back into a valid `nested_options`
+    items-json entry for `cart add-items` (default_handling:exact;
+    --keep-defaults omits it). Emits `items_json` ready to paste.
+
+python3 scripts/ddtools.py carts [--delete-all]
+    List open carts (all stores); --delete-all empties every open cart.
+```
+
+**Known environmental (not tool) failures** — expect these at night or for
+old orders; the JSON result carries `"env":true` when it's the menu case:
+- store has no menu right now (`MENU_NOT_FOUND`) → closed/renumbered/stale id.
+- `ITEM_UNAVAILABLE` ("store confirmed these items are not orderable right
+  now") → store-side stock/hours; retry when open, don't keep retrying.
+- `ITEM_MUTATION_UNAVAILABLE` / `CART_MUTATION_UNAVAILABLE` (transient) →
+  ddtools already sleeps 15 s and re-adds just the failing items.
+
+
+## What the base dd-cli covers
+
+Everything not handled by `ddtools` runs straight through `dd-cli`. The core
+restaurant flow (search → menu → item-details → cart → preview → submit), plus
+grocery/retail, order history/receipt/reorder, promos, addresses, and payment
+methods are detailed below — this is the general-purpose surface.
 
 ## Setup
 
@@ -71,47 +114,6 @@ id). `add-items` is **additive** (see Cart state below).
   `default_handling:"exact"` on an item in `add-items` to opt out.
 - **order-ahead**: `search`/`menu`/`cart add-items` surface schedule-ahead
   fields; you can schedule an order ahead of time.
-
-## `ddtools` helper (subset reorders + option trees) — `scripts/ddtools.py`
-
-One Python entrypoint wrapping dd-cli for the two fiddly-by-hand jobs. **Prefer
-it** — it does the retry/cleanup/verify bookkeeping. Runs `dd-cli` from `$PATH`
-(auth via `DD_CLI_ACCESS_TOKEN`); every subcommand prints clean JSON.
-
-```
-python3 scripts/ddtools.py reorder <order_uuid> [indices…] [--cleanup] [--json]
-    Re-order 1-based receipt-line indices (default = all) into a fresh cart:
-    nukes pre-existing open carts, adds lines with their receipt options
-    (bounded retries: transient → 15s re-add of just those items; rejected
-    options → retry bare; ITEM_UNAVAILABLE → terminal, no retry), verifies the
-    cart line-by-line, runs preview. Leaves the cart OPEN for `order submit`
-    unless --cleanup (dry-run: deletes the verified cart, including on FAIL —
-    never leaks an open cart). PASS = cart matches the re-ordered lines
-    exactly. `asap_available:false` (store closed / scheduled-ahead, e.g. at
-    night) does NOT fail a reorder.
-
-python3 scripts/ddtools.py read-options --store-id S (--item-id I | --query NAME) [--menu-id M]
-    Flatten the item's option tree into rows {kind,path,top,parent,depth,id,
-    name,price,is_default,enum}. kind=group (min/max/required), kind=option
-    (pickable leaf), kind=choice (expander w/ sub-groups). Pass `parent` when
-    an option id could collide across branches.
-
-python3 scripts/ddtools.py write-options --store-id S --item-id I --picks '[{"id","parent"?,"name"?,"quantity"?}]' [--quantity N] [--keep-defaults]
-    Resolve flat picks (from read-options) back into a valid `nested_options`
-    items-json entry for `cart add-items` (default_handling:exact;
-    --keep-defaults omits it). Emits `items_json` ready to paste.
-
-python3 scripts/ddtools.py carts [--delete-all]
-    List open carts (all stores); --delete-all empties every open cart.
-```
-
-**Known environmental (not tool) failures** — expect these at night or for
-old orders; the JSON result carries `"env":true` when it's the menu case:
-- store has no menu right now (`MENU_NOT_FOUND`) → closed/renumbered/stale id.
-- `ITEM_UNAVAILABLE` ("store confirmed these items are not orderable right
-  now") → store-side stock/hours; retry when open, don't keep retrying.
-- `ITEM_MUTATION_UNAVAILABLE` / `CART_MUTATION_UNAVAILABLE` (transient) →
-  ddtools already sleeps 15 s and re-adds just the failing items.
 
 ## Options / modifiers (the reason to prefer this skill)
 
@@ -180,6 +182,33 @@ quantity — it spans all option groups (required + optional) at once:
   pre-loaded); still inspect with `cart list` before submitting.
 - `--max` caps at **100**; `--days` widens the window. Grep `store_name`.
 
+## Grocery / retail
+
+```
+dd-cli find-nearby-stores --vertical grocery --limit 5
+dd-cli find-items --store-id <id> --query "coffee"      # per-query item_id
+dd-cli item-details --store-id <id> --item-id <iid>     # + top-level menu_id
+dd-cli cart add-items --store-id <id> --menu-id <mid> --intent "…" --items-json '...'
+```
+
+(`build-grocery-list` = stateless ingredient resolver; each call REPLACES the
+list. Use `find-items`/`item-details` for most grocery adds.)
+
+## Other commands
+
+- `order history --max 10 [--days 90] [--include-group-order]` — past orders.
+- `order status --order-uuid <u>` / `order receipt --order-uuid <u>`
+- `order reorder --order-uuid <u>` → returns a NEW `cart_uuid`, then continue.
+- `order checkout-url --cart-uuid <cart>` — browser fallback instead of
+  charging.
+- `promo list --store-id <id>` / `promo apply|remove --cart-uuid <cart>
+  --promo-code C`
+- `address list` / `address set --address-id <x> -y` / `address find -q "…"
+  --limit 5` / `address add --place-id <x>` (add is ACCOUNT-WIDE default, no
+  dedupe — confirm with user; check `address list` first).
+- `payment-method` → `payment-method list`.
+- `store-details --store-id <id>`.
+
 ## Piping dd-cli JSON to an interpreter
 
 - Prefer writing to a temp file, then parsing the file, over piping `dd-cli`
@@ -214,33 +243,6 @@ quantity — it spans all option groups (required + optional) at once:
   `asap_available:false` with a live ETA range while the store was open and
   accepting orders). Verify against the store page/UI (or just try) before
   declaring the store unavailable.
-
-## Grocery / retail
-
-```
-dd-cli find-nearby-stores --vertical grocery --limit 5
-dd-cli find-items --store-id <id> --query "coffee"      # per-query item_id
-dd-cli item-details --store-id <id> --item-id <iid>     # + top-level menu_id
-dd-cli cart add-items --store-id <id> --menu-id <mid> --intent "…" --items-json '...'
-```
-
-(`build-grocery-list` = stateless ingredient resolver; each call REPLACES the
-list. Use `find-items`/`item-details` for most grocery adds.)
-
-## Other commands
-
-- `order history --max 10 [--days 90] [--include-group-order]` — past orders.
-- `order status --order-uuid <u>` / `order receipt --order-uuid <u>`
-- `order reorder --order-uuid <u>` → returns a NEW `cart_uuid`, then continue.
-- `order checkout-url --cart-uuid <cart>` — browser fallback instead of
-  charging.
-- `promo list --store-id <id>` / `promo apply|remove --cart-uuid <cart>
-  --promo-code C`
-- `address list` / `address set --address-id <x> -y` / `address find -q "…"
-  --limit 5` / `address add --place-id <x>` (add is ACCOUNT-WIDE default, no
-  dedupe — confirm with user; check `address list` first).
-- `payment-method` → `payment-method list`.
-- `store-details --store-id <id>`.
 
 ## Behaviors
 
