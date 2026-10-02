@@ -28,3 +28,7 @@ _internal/
 # Local logs
 *.log
 logs/
+
+# agent skill install artifacts (local only)
+.claude/
+.agents/
