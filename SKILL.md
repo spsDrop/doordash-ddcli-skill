@@ -1,3 +1,8 @@
+---
+name: doordash-ordering-skill-ddcli
+description: Order food/grocery from DoorDash via the official dd-cli 10-command CLI, with the ddtools helper for reorders and option trees. Use when ordering DoorDash in a headless/agent context (auth via DD_CLI_ACCESS_TOKEN).
+---
+
 # DoorDash Ordering Skill (dd-cli)
 
 This skill wraps the **official DoorDash CLI** (`dd-cli`, on `$PATH`) and
